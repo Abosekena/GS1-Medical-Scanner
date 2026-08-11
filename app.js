@@ -110,8 +110,10 @@ $("save").onclick=async()=>{
 $("start").onclick=async()=>{
   if(!supabaseClient){openSettings();return}
   try{
-    reader=new ZXing.BrowserMultiFormatReader();
-    const devices=await ZXing.BrowserCodeReader.listVideoInputDevices();
+    const ZX = window.ZXingBrowser || window.ZXing;
+    if(!ZX) throw Error("ZXingBrowser library لم يتم تحميلها. تحقق من اتصال الإنترنت ثم أعد تحميل الصفحة.");
+    reader=new ZX.BrowserMultiFormatReader();
+    const devices=await ZX.BrowserCodeReader.listVideoInputDevices();
     const device=devices.at(-1)?.deviceId;
     controls=await reader.decodeFromVideoDevice(device,$("video"),async result=>{
       if(!result)return;
