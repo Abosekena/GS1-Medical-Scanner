@@ -1,139 +1,698 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b5cff">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<title>GS1 Medical Scanner v3</title>
-<link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="styles.css">
+  <meta charset="utf-8">
+
+  <meta name="viewport"
+        content="width=device-width,initial-scale=1,viewport-fit=cover">
+
+  <meta name="theme-color" content="#0b5cff">
+
+  <meta name="apple-mobile-web-app-capable" content="yes">
+
+  <title>GS1 Medical Scanner v4</title>
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
+
 <header>
   <div>
     <h1>GS1 Medical Scanner</h1>
-    <small>ماسح المنتجات الطبية • v3</small>
+    <small>ماسح المنتجات الطبية • v4</small>
   </div>
+
   <button id="settingsBtn" class="icon">⚙️</button>
 </header>
 
+
 <main>
+
+  <!-- ========================= -->
+  <!-- إعداد الاتصال -->
+  <!-- ========================= -->
+
   <div id="configNotice" class="notice hide">
+
     <b>إعداد الاتصال مطلوب</b>
-    <span>أدخل Project URL و Publishable Key من Supabase من زر الإعدادات.</span>
-    <button id="setupBtn" class="primary">إعداد الآن</button>
+
+    <span>
+      أدخل Project URL و Publishable Key من Supabase
+      من زر الإعدادات.
+    </span>
+
+    <button id="setupBtn" class="primary">
+      إعداد الآن
+    </button>
+
   </div>
+
+
+  <!-- ========================= -->
+  <!-- الإحصائيات -->
+  <!-- ========================= -->
 
   <section class="stats">
-    <div><b id="count">0</b><span>قراءات</span></div>
-    <div><b id="qty">0</b><span>إجمالي الكمية</span></div>
-    <div><b id="unique">0</b><span>أصناف/تشغيلات</span></div>
+
+    <div>
+      <b id="count">0</b>
+      <span>الحركات</span>
+    </div>
+
+    <div>
+      <b id="qty">0</b>
+      <span>إجمالي الكمية</span>
+    </div>
+
+    <div>
+      <b id="unique">0</b>
+      <span>أصناف</span>
+    </div>
+
   </section>
 
+
+  <!-- ========================= -->
+  <!-- بيانات المستخدم -->
+  <!-- ========================= -->
+
   <section class="card">
+
     <div class="row">
-      <label>المستخدم<input id="user" placeholder="اسم المستخدم"></label>
-      <label>الموقع<input id="loc" placeholder="المخزن / الموقع"></label>
+
+      <label>
+        المستخدم
+        <input
+          id="user"
+          placeholder="اسم المستخدم">
+      </label>
+
+      <label>
+        الموقع / القسم
+        <input
+          id="loc"
+          placeholder="مثال: الصيدلية">
+      </label>
+
     </div>
-    <label>المرجع<input id="ref" placeholder="إذن / فاتورة / جرد"></label>
+
+
+    <label>
+      المرجع
+      <input
+        id="ref"
+        placeholder="إذن / فاتورة / جرد">
+    </label>
+
+
+    <!-- ========================= -->
+    <!-- الكاميرا -->
+    <!-- ========================= -->
 
     <div class="cam">
-      <video id="video" playsinline muted></video>
+
+      <video
+        id="video"
+        playsinline
+        muted>
+      </video>
+
       <div class="scan-frame"></div>
-      <span>وجّه الكاميرا إلى GS1 DataMatrix أو GS1-128</span>
+
+      <span>
+        وجّه الكاميرا إلى GS1 DataMatrix أو GS1-128
+      </span>
+
     </div>
+
 
     <div class="actions">
-      <button id="start" class="primary">📷 بدء السكان</button>
-      <button id="stop" disabled>إيقاف</button>
+
+      <button
+        id="start"
+        class="primary">
+        📷 بدء السكان
+      </button>
+
+      <button
+        id="stop"
+        disabled>
+        إيقاف
+      </button>
+
     </div>
+
+
+    <!-- ========================= -->
+    <!-- إدخال يدوي -->
+    <!-- ========================= -->
 
     <details class="manual">
-      <summary>إدخال/اختبار Raw GS1 يدويًا</summary>
-      <textarea id="raw" placeholder="مثال: (01)08714729041184(17)280825(10)37304122"></textarea>
-      <button id="parse" class="primary">تحليل GS1</button>
+
+      <summary>
+        إدخال / اختبار Raw GS1 يدويًا
+      </summary>
+
+      <textarea
+        id="raw"
+        placeholder="مثال: (01)08714729041184(17)280825(10)37304122">
+      </textarea>
+
+      <button
+        id="parse"
+        class="primary">
+        تحليل GS1
+      </button>
+
     </details>
+
   </section>
 
-  <section id="result" class="card hide">
+
+
+  <!-- ================================================= -->
+  <!-- نتيجة السكان + حركة المخزون -->
+  <!-- ================================================= -->
+
+  <section
+    id="result"
+    class="card hide">
+
+
     <div class="result-head">
-      <h2>نتيجة السكان</h2>
-      <span id="scanType" class="pill">GS1</span>
+
+      <h2>
+        نتيجة السكان
+      </h2>
+
+      <span
+        id="scanType"
+        class="pill">
+        GS1
+      </span>
+
     </div>
-    <div id="productHint" class="product-hint hide"></div>
+
+
+    <!-- ========================= -->
+    <!-- المنتج -->
+    <!-- ========================= -->
+
+    <div
+      id="productHint"
+      class="product-hint hide">
+    </div>
+
 
     <div class="grid">
-      <label>GTIN<input id="gtin" readonly></label>
-      <label>LOT / Batch<input id="lot" readonly></label>
-      <label>Expiry<input id="expiry" readonly></label>
-      <label>Serial<input id="serial" readonly></label>
-      <label>REF<input id="refNo" readonly></label>
-      <label>الكمية<input id="quantity" type="number" min="1" value="1"></label>
+
+      <label>
+        GTIN
+        <input
+          id="gtin"
+          readonly>
+      </label>
+
+
+      <label>
+        LOT / Batch
+        <input
+          id="lot"
+          readonly>
+      </label>
+
+
+      <label>
+        Expiry
+        <input
+          id="expiry"
+          readonly>
+      </label>
+
+
+      <label>
+        Serial
+        <input
+          id="serial"
+          readonly>
+      </label>
+
     </div>
+
+
+
+    <!-- ================================================= -->
+    <!-- حركة المخزون -->
+    <!-- ================================================= -->
+
+    <div class="movement-box">
+
+      <h3>
+        حركة المخزون
+      </h3>
+
+
+      <!-- نوع الحركة -->
+
+      <label>
+
+        نوع الحركة
+
+        <select id="movementType">
+
+          <option value="IN">
+            دخول
+          </option>
+
+          <option value="OUT">
+            صرف
+          </option>
+
+          <option value="RETURN_IN">
+            مرتجع دخول
+          </option>
+
+          <option value="RETURN_OUT">
+            مرتجع خروج
+          </option>
+
+          <option value="ADJUSTMENT">
+            تسوية
+          </option>
+
+          <option value="TRANSFER">
+            تحويل
+          </option>
+
+        </select>
+
+      </label>
+
+
+
+      <!-- المخزن -->
+
+      <label>
+
+        المخزن
+
+        <select id="locationId">
+
+          <option value="">
+            اختر المخزن
+          </option>
+
+        </select>
+
+      </label>
+
+
+
+      <!-- المخزن المستلم في التحويل -->
+
+      <label
+        id="toLocationBox"
+        class="hide">
+
+        إلى المخزن
+
+        <select id="toLocationId">
+
+          <option value="">
+            اختر المخزن المستلم
+          </option>
+
+        </select>
+
+      </label>
+
+
+
+      <!-- الكمية -->
+
+      <label>
+
+        الكمية
+
+        <input
+          id="quantity"
+          type="number"
+          min="1"
+          value="1">
+
+      </label>
+
+
+
+      <!-- المرجع -->
+
+      <label>
+
+        رقم المرجع
+
+        <input
+          id="referenceNo"
+          placeholder="إذن / فاتورة / جرد">
+
+      </label>
+
+
+
+      <!-- ملاحظات -->
+
+      <label>
+
+        ملاحظات
+
+        <textarea
+          id="movementNotes"
+          placeholder="ملاحظات الحركة">
+        </textarea>
+
+      </label>
+
+    </div>
+
+
+
+    <!-- Raw GS1 -->
 
     <div class="raw">
-      <small>Raw GS1</small>
+
+      <small>
+        Raw GS1
+      </small>
+
       <code id="rawview"></code>
+
     </div>
-    <button id="save" class="primary full">➕ حفظ في قاعدة البيانات</button>
+
+
+
+    <!-- حفظ -->
+
+    <button
+      id="save"
+      class="primary full">
+
+      ➕ تسجيل حركة المخزون
+
+    </button>
+
+
   </section>
 
+
+
+  <!-- ================================================= -->
+  <!-- الحركات المسجلة -->
+  <!-- ================================================= -->
+
   <section class="card">
+
     <div class="title">
-      <h2>القراءات المحفوظة</h2>
+
+      <h2>
+        الحركات المسجلة
+      </h2>
+
       <div class="toolbar">
-        <button id="refresh">تحديث</button>
-        <button id="export">📊 Excel</button>
-        <button id="clear" class="danger">مسح الكل</button>
+
+        <button id="refresh">
+          تحديث
+        </button>
+
+        <button id="export">
+          📊 Excel
+        </button>
+
       </div>
+
     </div>
+
 
     <div class="filter">
-      <input id="search" placeholder="بحث GTIN / LOT / Serial / المستخدم">
+
+      <input
+        id="search"
+        placeholder="بحث GTIN / LOT / Serial / المرجع">
+
     </div>
 
+
     <div class="table">
+
       <table>
+
         <thead>
+
           <tr>
-            <th>#</th><th>GTIN</th><th>LOT</th><th>Expiry</th>
-            <th>Serial</th><th>Qty</th><th>النوع</th><th></th>
+
+            <th>#</th>
+
+            <th>GTIN</th>
+
+            <th>LOT</th>
+
+            <th>Expiry</th>
+
+            <th>Serial</th>
+
+            <th>Qty</th>
+
+            <th>النوع</th>
+
+            <th>المرجع</th>
+
+            <th>التاريخ</th>
+
           </tr>
+
         </thead>
+
+
         <tbody id="rows"></tbody>
+
       </table>
+
     </div>
+
   </section>
+
+
+
+  <!-- ================================================= -->
+  <!-- المخزون الحالي -->
+  <!-- ================================================= -->
 
   <section class="card">
-    <h2>ملخص التجميع</h2>
-    <p class="muted">القراءات المتطابقة يتم تجميعها حسب GTIN + LOT + EXP + Serial.</p>
-    <div class="table">
-      <table>
-        <thead><tr><th>GTIN</th><th>LOT</th><th>Expiry</th><th>Serial</th><th>Qty</th></tr></thead>
-        <tbody id="summaryRows"></tbody>
-      </table>
+
+    <div class="title">
+
+      <h2>
+        المخزون الحالي
+      </h2>
+
+      <button id="refreshStock">
+        تحديث
+      </button>
+
     </div>
+
+
+    <div class="table">
+
+      <table>
+
+        <thead>
+
+          <tr>
+
+            <th>GTIN</th>
+
+            <th>LOT</th>
+
+            <th>Expiry</th>
+
+            <th>Serial</th>
+
+            <th>المخزن</th>
+
+            <th>الكمية</th>
+
+          </tr>
+
+        </thead>
+
+
+        <tbody id="stockRows"></tbody>
+
+      </table>
+
+    </div>
+
   </section>
+
+
+
+  <!-- ================================================= -->
+  <!-- ملخص -->
+  <!-- ================================================= -->
+
+  <section class="card">
+
+    <h2>
+      ملخص التجميع
+    </h2>
+
+    <p class="muted">
+      القراءات المتطابقة يتم تجميعها حسب
+      GTIN + LOT + EXP + Serial.
+    </p>
+
+    <div class="table">
+
+      <table>
+
+        <thead>
+
+          <tr>
+
+            <th>GTIN</th>
+            <th>LOT</th>
+            <th>Expiry</th>
+            <th>Serial</th>
+            <th>Qty</th>
+
+          </tr>
+
+        </thead>
+
+        <tbody id="summaryRows"></tbody>
+
+      </table>
+
+    </div>
+
+  </section>
+
 </main>
 
-<div id="settingsModal" class="modal hide">
+
+
+<!-- ================================================= -->
+<!-- Settings -->
+<!-- ================================================= -->
+
+<div
+  id="settingsModal"
+  class="modal hide">
+
   <div class="modal-box">
-    <div class="title"><h2>إعداد Supabase</h2><button id="closeSettings">✕</button></div>
-    <p class="muted">استخدم <b>Project URL</b> و<b>Publishable Key</b> فقط. لا تستخدم Secret Key.</p>
-    <label>Project URL<input id="supabaseUrl" placeholder="https://xxxxxxxx.supabase.co"></label>
-    <label>Publishable Key<input id="supabaseKey" type="password" placeholder="sb_publishable_..."></label>
-    <div class="actions"><button id="saveSettings" class="primary">حفظ واختبار الاتصال</button><button id="clearSettings">مسح الإعدادات</button></div>
-    <div id="connectionStatus" class="status"></div>
+
+    <div class="title">
+
+      <h2>
+        إعداد Supabase
+      </h2>
+
+      <button id="closeSettings">
+        ✕
+      </button>
+
+    </div>
+
+
+    <p class="muted">
+
+      استخدم
+      <b>Project URL</b>
+      و
+      <b>Publishable Key</b>
+      فقط.
+
+      لا تستخدم Secret Key.
+
+    </p>
+
+
+    <label>
+
+      Project URL
+
+      <input
+        id="supabaseUrl"
+        placeholder="https://xxxxxxxx.supabase.co">
+
+    </label>
+
+
+    <label>
+
+      Publishable Key
+
+      <input
+        id="supabaseKey"
+        type="password"
+        placeholder="sb_publishable_...">
+
+    </label>
+
+
+    <div class="actions">
+
+      <button
+        id="saveSettings"
+        class="primary">
+
+        حفظ واختبار الاتصال
+
+      </button>
+
+
+      <button id="clearSettings">
+
+        مسح الإعدادات
+
+      </button>
+
+    </div>
+
+
+    <div
+      id="connectionStatus"
+      class="status">
+    </div>
+
   </div>
+
 </div>
 
-<footer>GS1 Medical Scanner • Supabase + PWA</footer>
+
+
+<footer>
+
+  GS1 Medical Scanner
+  • Supabase + PWA
+
+</footer>
+
+
+
+<!-- ================================================= -->
+<!-- Libraries -->
+<!-- ================================================= -->
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script src="https://unpkg.com/@zxing/browser@0.2.1"></script>
+
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+
 <script src="app.js"></script>
+
 </body>
 </html>
