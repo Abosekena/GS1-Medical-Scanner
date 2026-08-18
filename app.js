@@ -1,3 +1,4 @@
+// GS1 Medical Scanner — corrected startup order
 let supabaseClient=null, controls=null, reader=null, current=null, allRows=[];
 let torchOn=false, ocrBusy=false;
 const $=id=>document.getElementById(id);
@@ -12,11 +13,10 @@ function ensureExtraUI(){
     box.innerHTML=`<h3 style="margin:0 0 9px">إضافة المنتج إلى قاعدة المنتجات</h3><div class="grid"><label>GTIN / كود الصنف<input id="productGtin" placeholder="اكتب الكود أو استخدم الكاميرا"></label><label>اسم المنتج<input id="productName" placeholder="اسم المنتج"></label><label>رقم المرجع REF<input id="productRef" placeholder="REF"></label><label>الوحدة UOM<input id="productUom" value="EA" placeholder="EA"></label></div><label>الوصف<input id="productDesc" placeholder="وصف اختياري"></label><div class="actions"><button id="saveProduct" class="primary">💾 حفظ / تحديث المنتج</button><button id="ocr">📷 قراءة النص بالكاميرا</button></div><div id="ocrStatus" class="status">يمكنك تشغيل الكاميرا ثم قراءة النص المطبوع على المنتج.</div>`;
     const save=$("save");if(save)result.insertBefore(box,save);else result.appendChild(box);
   }
-  if(!$("torch"))return;
-  
-  
-  
 }
+
+// Important: create the dynamic controls before binding their events.
+ensureExtraUI();
 
 function setStatus(msg,ok=false){if($("connectionStatus")){ $("connectionStatus").textContent=msg; $("connectionStatus").style.background=ok?"#ecfdf3":"#fff7ed"; }}
 function openSettings(){let c=cfg();$("supabaseUrl").value=c.url;$("supabaseKey").value=c.key;$("settingsModal").classList.remove("hide")}
@@ -68,7 +68,7 @@ function setProductForm(p={}){
 }
 async function showResult(x,type="GS1"){
   current=x;
-  $("gtin").value=x.gtin;$("lot").value=x.lot;$("expiry").value=x.expiry;$("serial").value=x.serial;$ ("quantity").value=1;
+  $("gtin").value=x.gtin;$("lot").value=x.lot;$("expiry").value=x.expiry;$("serial").value=x.serial;$("quantity").value=1;
   $("rawview").textContent=x.raw.replace(/\x1d/g,"[GS]");$("scanType").textContent=type;$("result").classList.remove("hide");
   const p=await findProduct(x.gtin);
   if(p){
@@ -138,12 +138,11 @@ async function startOCR(){
   }catch(e){$("ocrStatus").textContent="فشل OCR";alert("تعذر قراءة النص: "+e.message)}finally{ocrBusy=false}
 }
 $("ocr").onclick=startOCR;
-ensureExtraUI();
 $("settingsBtn").onclick=openSettings;$("setupBtn").onclick=openSettings;$("closeSettings").onclick=closeSettings;
 $("saveSettings").onclick=async()=>{const url=$("supabaseUrl").value.trim().replace(/\/$/,""),key=$("supabaseKey").value.trim();if(!/^https:\/\/.+\.supabase\.co/.test(url)||!key){setStatus("تأكد من Project URL و Publishable Key");return}localStorage.setItem("gs1_sb_url",url);localStorage.setItem("gs1_sb_key",key);const ok=await initSupabase();if(ok){setStatus("تم الاتصال بنجاح بقاعدة البيانات ✓",true);await loadRows();setTimeout(closeSettings,500)}else setStatus("فشل الاتصال. راجع URL / Key وRLS/Data API")};
 $("clearSettings").onclick=()=>{localStorage.removeItem("gs1_sb_url");localStorage.removeItem("gs1_sb_key");supabaseClient=null;$("configNotice").classList.remove("hide");setStatus("تم مسح الإعدادات")};
 $("refresh").onclick=loadRows;
-$("clear").onclick=async()=>{if(!supabaseClient)return;if(confirm("مسح جميع القراءات من قاعدة البيانات؟")){const {error}=await supabaseClient.from("scans").delete().not("id","is",null);if(error)alert(error.message);else loadRows()}};
+$("clear")?.addEventListener("click",async()=>{if(!supabaseClient)return;if(confirm("مسح جميع القراءات من قاعدة البيانات؟")){const {error}=await supabaseClient.from("scans").delete().not("id","is",null);if(error)alert(error.message);else loadRows()}});
 $("search").oninput=e=>{const q=e.target.value.trim().toLowerCase();renderRows(!q?allRows:allRows.filter(x=>[x.gtin,x.lot,x.expiry,x.serial,x.user_name,x.location].some(v=>String(v||"").toLowerCase().includes(q))))};
 $("export").onclick=()=>{if(!allRows.length)return alert("لا توجد بيانات للتصدير");const data=allRows.map(x=>({ID:x.id,Date:x.scanned_at||x.created_at,GTIN:x.gtin,LOT:x.lot,Expiry:x.expiry,Serial:x.serial,Quantity:x.quantity,RawGS1:x.raw_gs1,Symbology:x.symbology,Location:x.location,Reference:x.reference,User:x.user_name}));const ws=XLSX.utils.json_to_sheet(data),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Scans");XLSX.writeFile(wb,`GS1_Scans_${new Date().toISOString().slice(0,10)}.xlsx`)};
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
