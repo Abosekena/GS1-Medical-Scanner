@@ -1,0 +1,144 @@
+/* GS1 Medical Scanner — mobile-first UI refresh */
+:root {
+  --brand: #1463e8;
+  --brand-dark: #0b46aa;
+  --ink: #152033;
+  --muted: #64748b;
+  --surface: #ffffff;
+  --canvas: #f3f6fb;
+  --line: #dce4f0;
+  --success: #087f5b;
+  --radius: 18px;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-width: 320px;
+  color: var(--ink);
+  background: var(--canvas);
+  line-height: 1.45;
+}
+
+header {
+  position: sticky;
+  z-index: 20;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 72px;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+  color: #fff;
+  background: linear-gradient(135deg, #0c4ebc, #1475ef);
+  box-shadow: 0 3px 16px #0b46aa33;
+}
+
+header h1 { margin: 0; font-size: clamp(18px, 5vw, 23px); line-height: 1.15; }
+header small { display: block; margin-top: 4px; opacity: .82; font-size: 12px; }
+header .icon { flex: 0 0 46px; min-height: 46px; padding: 0; font-size: 21px; border-color: #ffffff55; background: #ffffff1c; color: #fff; }
+
+main { width: min(100%, 760px); margin: 0 auto; padding: 16px 14px calc(28px + env(safe-area-inset-bottom)); }
+
+.card, .notice, #result, .manual-product {
+  margin: 0 0 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 4px 16px #1e3a5f0d;
+}
+
+.notice { border-color: #fdba74; background: #fffaf4; }
+.notice b { display: block; margin-bottom: 5px; }
+.notice span { display: block; color: #7c4a13; font-size: 14px; }
+.notice button { width: 100%; margin-top: 12px; }
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0 0 14px;
+}
+.stats > div {
+  min-width: 0;
+  padding: 13px 8px;
+  text-align: center;
+  border: 1px solid #d7e4fa;
+  border-radius: 15px;
+  background: #fff;
+}
+.stats b { display: block; overflow: hidden; color: var(--brand); font-size: clamp(19px, 6vw, 27px); text-overflow: ellipsis; }
+.stats span { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+
+label { display: block; margin: 0 0 12px; color: #334155; font-weight: 700; font-size: 14px; }
+input, select, textarea {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  outline: 0;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+  font-weight: 400;
+}
+textarea { min-height: 88px; resize: vertical; }
+input:focus, select:focus, textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 3px #1463e824; }
+
+.row, .grid { display: grid; grid-template-columns: 1fr; gap: 0 12px; }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 12px 0; }
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  color: #263448;
+  background: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .12s ease, background .12s ease, box-shadow .12s ease;
+}
+button:active { transform: scale(.98); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.primary { border-color: var(--brand); color: #fff; background: var(--brand); box-shadow: 0 4px 10px #1463e833; }
+
+.cam { position: relative; overflow: hidden; margin: 4px 0 12px; border-radius: 16px; background: #111827; aspect-ratio: 4 / 3; }
+.cam video { width: 100%; height: 100%; object-fit: cover; }
+.cam span { position: absolute; right: 10px; bottom: 10px; left: 10px; padding: 7px 9px; border-radius: 9px; color: #fff; background: #0000008a; text-align: center; font-size: 12px; }
+.scan-frame { position: absolute; z-index: 1; inset: 18% 12%; border: 2px solid #60a5fa; border-radius: 14px; box-shadow: 0 0 0 999px #00000022; pointer-events: none; }
+
+#result { border: 2px solid #bcd3fa; background: linear-gradient(180deg, #f8fbff, #fff); }
+#result h2, #result h3 { margin-top: 0; }
+#productHint, .status { margin: 10px 0; padding: 10px 12px; border-radius: 11px; color: #14532d; background: #ecfdf5; font-size: 13px; }
+#rawview { overflow-wrap: anywhere; padding: 10px; border-radius: 10px; color: #475569; background: #f1f5f9; direction: ltr; text-align: left; font-family: Consolas, monospace; font-size: 12px; }
+.manual-product { padding: 14px !important; border-color: #c8d8f4 !important; background: #f8fbff !important; box-shadow: none !important; }
+.manual-product h3 { font-size: 16px; }
+
+h2 { margin: 24px 4px 10px; font-size: 18px; }
+table { display: block; width: 100%; overflow-x: auto; border-collapse: separate; border-spacing: 0; border: 1px solid var(--line); border-radius: 14px; background: #fff; white-space: nowrap; }
+th, td { padding: 11px 10px; border-bottom: 1px solid #e8eef6; text-align: right; font-size: 13px; }
+th { position: sticky; top: 0; color: #36506f; background: #f7faff; font-size: 12px; }
+tr:last-child td { border-bottom: 0; }
+td button { min-height: 34px; padding: 5px 9px; color: #b42318; font-size: 12px; }
+
+#settingsModal { padding: 16px; }
+#settingsModal > div, .modal-content { width: min(100%, 500px); max-height: 90dvh; overflow: auto; margin: auto; border-radius: var(--radius); }
+.hide { display: none !important; }
+footer { padding: 18px 14px calc(18px + env(safe-area-inset-bottom)); color: var(--muted); text-align: center; font-size: 12px; }
+
+@media (min-width: 560px) {
+  main { padding: 22px; }
+  .row, .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .actions { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  .stats { gap: 12px; }
+}
