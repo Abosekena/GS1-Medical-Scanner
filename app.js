@@ -81,6 +81,13 @@ function updateMovementUI(){
   if(quantity)quantity.min=type==="ADJUSTMENT"?"-999999":"1";
 }
 function selectedLocationName(id){return locations.find(x=>String(x.id)===String(id))?.location_name||$("loc")?.value||null}
+async function getAvailableQuantity({gtin,lot,expiry,serial,locationId}){
+  let query=supabaseClient.from("stock").select("quantity").eq("gtin",gtin).eq("location_id",Number(locationId));
+  for(const [column,value] of Object.entries({lot,expiry,serial}))query=value?query.eq(column,value):query.is(column,null);
+  const {data,error}=await query;
+  if(error)throw error;
+  return (data||[]).reduce((sum,row)=>sum+(Number(row.quantity)||0),0);
+}
 function setProductForm(p={}){
   if($("productGtin"))$("productGtin").value=p.gtin||"";
   if($("productName"))$("productName").value=p.product_name||"";
@@ -175,7 +182,16 @@ $("save").onclick=async()=>{
     if(type==="TRANSFER"&&String(locationId)===String(toLocationId))return alert("المخزن المصدر والمستلم لا يمكن أن يكونا متطابقين");
     const product=await findProduct(gtin);
     if(!product)return alert("المنتج غير موجود. احفظ المنتج أولًا ثم سجّل حركة المخزون.");
-    const movement={movement_type:type,product_id:product.id,location_id:Number(locationId),gtin,lot:$("lot").value.trim()||null,expiry:$("expiry").value.trim()||null,serial:$("serial").value.trim()||null,quantity,reference_no:reference,from_location_id:type==="TRANSFER"?Number(locationId):null,to_location_id:type==="TRANSFER"?Number(toLocationId):null};
+    const item={gtin,lot:$("lot").value.trim()||null,expiry:$("expiry").value.trim()||null,serial:$("serial").value.trim()||null};
+    const required=type==="ADJUSTMENT"?Math.max(0,-quantity):Math.abs(quantity);
+    const reducesStock=["OUT","RETURN_OUT","TRANSFER"].includes(type)||required>0;
+    if(reducesStock){
+      try{
+        const available=await getAvailableQuantity({...item,locationId});
+        if(available<required)return alert(`الرصيد غير كافٍ في مخزن المصدر. المتاح: ${available} • المطلوب: ${required}`);
+      }catch(e){return alert("تعذر التحقق من الرصيد قبل الحفظ: "+e.message)}
+    }
+    const movement={movement_type:type,product_id:product.id,location_id:Number(locationId),...item,quantity,reference_no:reference,from_location_id:type==="TRANSFER"?Number(locationId):null,to_location_id:type==="TRANSFER"?Number(toLocationId):null};
     const {error:movementError}=await supabaseClient.from("stock_movements").insert(movement);
     if(movementError){alert("تعذر تسجيل حركة المخزون: "+movementError.message);return}
   }
