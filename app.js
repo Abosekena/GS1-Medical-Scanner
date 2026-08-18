@@ -82,9 +82,24 @@ async function loadRows(){
   if(error){console.error(error);return}allRows=data||[];renderRows(allRows);renderSummary(allRows);
 }
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+function formatDate(value){
+  if(!value)return "";
+  const date=new Date(value);
+  return Number.isNaN(date.getTime())?esc(value):date.toLocaleString("ar-EG");
+}
+function ensureScanActionsHeader(){
+  const header=$("rows")?.closest("table")?.querySelector("thead tr");
+  if(header&&!header.querySelector('[data-column="actions"]')){
+    const cell=document.createElement("th");
+    cell.dataset.column="actions";
+    cell.textContent="إجراء";
+    header.appendChild(cell);
+  }
+}
 function renderRows(a){
   $("count").textContent=a.length;$("qty").textContent=a.reduce((s,x)=>s+(Number(x.quantity)||0),0);const groups=new Set(a.map(x=>[x.gtin,x.lot,x.expiry,x.serial].join("|")));$("unique").textContent=groups.size;
-  $("rows").innerHTML=a.map(x=>`<tr><td>${x.id}</td><td>${esc(x.gtin)}</td><td>${esc(x.lot)}</td><td>${esc(x.expiry)}</td><td>${esc(x.serial)}</td><td>${x.quantity}</td><td>${esc(x.symbology)}</td><td><button onclick="delRow(${x.id})">حذف</button></td></tr>`).join("");
+  ensureScanActionsHeader();
+  $("rows").innerHTML=a.map(x=>`<tr><td>${x.id}</td><td>${esc(x.gtin)}</td><td>${esc(x.lot)}</td><td>${esc(x.expiry)}</td><td>${esc(x.serial)}</td><td>${x.quantity}</td><td>${esc(x.symbology)}</td><td>${esc(x.reference)}</td><td>${formatDate(x.scanned_at||x.created_at)}</td><td><button onclick="delRow(${x.id})">حذف</button></td></tr>`).join("");
 }
 function renderSummary(a){
   const m=new Map();for(const x of a){const k=[x.gtin||"",x.lot||"",x.expiry||"",x.serial||""].join("|");m.set(k,(m.get(k)||0)+(Number(x.quantity)||0));}
