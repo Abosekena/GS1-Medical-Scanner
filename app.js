@@ -1,5 +1,5 @@
 // GS1 Medical Scanner — corrected startup order
-let supabaseClient=null, controls=null, reader=null, current=null, allRows=[];
+let supabaseClient=null, controls=null, reader=null, current=null, allRows=[], locations=[];
 let torchOn=false, ocrBusy=false;
 const $=id=>document.getElementById(id);
 function cfg(){return {url:localStorage.getItem("gs1_sb_url")||"",key:localStorage.getItem("gs1_sb_key")||""}}
@@ -29,6 +29,7 @@ async function initSupabase(){
     const {error}=await supabaseClient.from("scans").select("id",{count:"exact",head:true});
     if(error) throw error;
     $("configNotice").classList.add("hide");
+    await loadLocations();
     return true;
   }catch(e){$("configNotice").classList.remove("hide");console.error(e);return false}
 }
@@ -59,6 +60,27 @@ async function findProduct(gtin){
   const {data,error}=await supabaseClient.from("products").select("*").eq("gtin",gtin).maybeSingle();
   if(error){console.warn(error);return null}return data;
 }
+async function loadLocations(){
+  if(!supabaseClient||!$("locationId"))return;
+  const {data,error}=await supabaseClient.from("locations").select("id,location_name,location_type,active").eq("active",true).order("id");
+  if(error){console.warn("Locations error:",error);return}
+  locations=data||[];
+  for(const select of [$("locationId"),$("toLocationId")]){
+    if(!select)continue;
+    const previous=select.value;
+    select.innerHTML='<option value="">اختر المخزن</option>';
+    for(const location of locations){const option=document.createElement("option");option.value=location.id;option.textContent=location.location_name;select.appendChild(option)}
+    select.value=previous;
+  }
+}
+function updateMovementUI(){
+  const type=$("movementType")?.value;
+  const box=$("toLocationBox"),to=$("toLocationId"),quantity=$("quantity");
+  if(box)box.classList.toggle("hide",type!=="TRANSFER");
+  if(type!=="TRANSFER"&&to)to.value="";
+  if(quantity)quantity.min=type==="ADJUSTMENT"?"-999999":"1";
+}
+function selectedLocationName(id){return locations.find(x=>String(x.id)===String(id))?.location_name||$("loc")?.value||null}
 function setProductForm(p={}){
   if($("productGtin"))$("productGtin").value=p.gtin||"";
   if($("productName"))$("productName").value=p.product_name||"";
@@ -108,7 +130,21 @@ function renderSummary(a){
   const m=new Map();for(const x of a){const k=[x.gtin||"",x.lot||"",x.expiry||"",x.serial||""].join("|");m.set(k,(m.get(k)||0)+(Number(x.quantity)||0));}
   $("summaryRows").innerHTML=[...m.entries()].map(([k,q])=>{const [g,l,e,s]=k.split("|");return `<tr><td>${esc(g)}</td><td>${esc(l)}</td><td>${esc(e)}</td><td>${esc(s)}</td><td>${q}</td></tr>`}).join("");
 }
-window.delRow=async id=>{if(!confirm("حذف القراءة؟"))return;const {error}=await supabaseClient.from("scans").delete().eq("id",id);if(error)alert("تعذر الحذف: "+error.message);else loadRows()};
+async function loadStock(){
+  if(!supabaseClient||!$("stockRows"))return;
+  const {data,error}=await supabaseClient.from("stock").select("*").order("location_id");
+  if(error){console.warn("Stock load error:",error);return}
+  $("stockRows").innerHTML=(data||[]).map(x=>{
+    const location=locations.find(l=>String(l.id)===String(x.location_id));
+    return `<tr><td>${esc(x.gtin)}</td><td>${esc(x.lot)}</td><td>${esc(x.expiry)}</td><td>${esc(x.serial)}</td><td>${esc(location?.location_name||x.location_id)}</td><td>${esc(x.quantity)}</td></tr>`;
+  }).join("");
+}
+window.delRow=async id=>{
+  if($("movementType")&&$("locationId"))return alert("لا يمكن حذف سجل السكان من هنا بعد تفعيل المخزون، لأن ذلك لن يعكس حركة الرصيد. استخدم حركة تسوية أو مرتجع من نموذج الحركة.");
+  if(!confirm("حذف القراءة؟"))return;
+  const {error}=await supabaseClient.from("scans").delete().eq("id",id);
+  if(error)alert("تعذر الحذف: "+error.message);else loadRows();
+};
 $("parse").onclick=async()=>{try{await showResult(parseGS1($("raw").value),"MANUAL/GS1")}catch(e){alert("تعذر التحليل: "+e.message)}};
 async function saveProduct(){
   if(!supabaseClient)return alert("اضبط الاتصال بقاعدة البيانات أولًا");
@@ -125,8 +161,27 @@ $("saveProduct").onclick=saveProduct;
 $("save").onclick=async()=>{
   if(!current||!supabaseClient)return alert("اضبط الاتصال بقاعدة البيانات أولًا");
   const gtin=$("gtin").value.trim();if(!gtin)return alert("GTIN مطلوب");
-  const row={gtin,lot:$("lot").value.trim()||null,expiry:$("expiry").value.trim()||null,serial:$("serial").value.trim()||null,quantity:Math.max(1,Number($("quantity").value)||1),raw_gs1:current.raw,symbology:$("scanType").textContent,location:$("loc").value||null,reference:$("ref").value||null,user_name:$("user").value||null};
-  const {error}=await supabaseClient.from("scans").insert(row);if(error){alert("تعذر الحفظ: "+error.message);return}$("result").classList.add("hide");current=null;await loadRows();
+  const inventoryMode=!!$("movementType")&&!!$("locationId");
+  const type=$("movementType")?.value||"IN";
+  const locationId=$("locationId")?.value;
+  const toLocationId=$("toLocationId")?.value;
+  const quantity=Number($("quantity").value);
+  const reference=$("referenceNo")?.value.trim()||$("ref").value.trim()||null;
+  if(!Number.isFinite(quantity)||quantity===0)return alert("الكمية يجب أن تكون رقمًا غير صفر");
+  if(type!=="ADJUSTMENT"&&quantity<0)return alert("الكمية يجب أن تكون أكبر من صفر");
+  if(inventoryMode){
+    if(!locationId)return alert("اختر المخزن أولًا");
+    if(type==="TRANSFER"&&!toLocationId)return alert("اختر المخزن المستلم أولًا");
+    if(type==="TRANSFER"&&String(locationId)===String(toLocationId))return alert("المخزن المصدر والمستلم لا يمكن أن يكونا متطابقين");
+    const product=await findProduct(gtin);
+    if(!product)return alert("المنتج غير موجود. احفظ المنتج أولًا ثم سجّل حركة المخزون.");
+    const movement={movement_type:type,product_id:product.id,location_id:Number(locationId),gtin,lot:$("lot").value.trim()||null,expiry:$("expiry").value.trim()||null,serial:$("serial").value.trim()||null,quantity,reference_no:reference,from_location_id:type==="TRANSFER"?Number(locationId):null,to_location_id:type==="TRANSFER"?Number(toLocationId):null};
+    const {error:movementError}=await supabaseClient.from("stock_movements").insert(movement);
+    if(movementError){alert("تعذر تسجيل حركة المخزون: "+movementError.message);return}
+  }
+  const row={gtin,lot:$("lot").value.trim()||null,expiry:$("expiry").value.trim()||null,serial:$("serial").value.trim()||null,quantity:Math.abs(quantity),raw_gs1:current.raw,symbology:$("scanType").textContent,location:inventoryMode?selectedLocationName(locationId):$("loc").value||null,reference,user_name:$("user").value||null};
+  const {error}=await supabaseClient.from("scans").insert(row);if(error){alert("تمت حركة المخزون لكن تعذر تسجيل سجل السكان: "+error.message);return}
+  $("result").classList.add("hide");current=null;await loadRows();if(inventoryMode)await loadStock();
 };
 async function setTorch(on){
   try{const track=$("video").srcObject?.getVideoTracks?.()[0];if(!track)throw Error("الكاميرا غير مشغلة");const cap=track.getCapabilities?.();if(!cap?.torch)throw Error("هذا الهاتف/المتصفح لا يدعم الفلاش من داخل صفحة الويب");await track.applyConstraints({advanced:[{torch:!!on}]});torchOn=!!on;$("torch").textContent=torchOn?"🔦 إيقاف الفلاش":"🔦 تشغيل الفلاش";}catch(e){alert(e.message)}
@@ -157,9 +212,12 @@ async function startOCR(){
 }
 $("ocr").onclick=startOCR;
 $("settingsBtn").onclick=openSettings;$("setupBtn").onclick=openSettings;$("closeSettings").onclick=closeSettings;
-$("saveSettings").onclick=async()=>{const url=$("supabaseUrl").value.trim().replace(/\/$/,""),key=$("supabaseKey").value.trim();if(!/^https:\/\/.+\.supabase\.co/.test(url)||!key){setStatus("تأكد من Project URL و Publishable Key");return}localStorage.setItem("gs1_sb_url",url);localStorage.setItem("gs1_sb_key",key);const ok=await initSupabase();if(ok){setStatus("تم الاتصال بنجاح بقاعدة البيانات ✓",true);await loadRows();setTimeout(closeSettings,500)}else setStatus("فشل الاتصال. راجع URL / Key وRLS/Data API")};
+$("saveSettings").onclick=async()=>{const url=$("supabaseUrl").value.trim().replace(/\/$/,""),key=$("supabaseKey").value.trim();if(!/^https:\/\/.+\.supabase\.co/.test(url)||!key){setStatus("تأكد من Project URL و Publishable Key");return}localStorage.setItem("gs1_sb_url",url);localStorage.setItem("gs1_sb_key",key);const ok=await initSupabase();if(ok){setStatus("تم الاتصال بنجاح بقاعدة البيانات ✓",true);await loadRows();await loadStock();setTimeout(closeSettings,500)}else setStatus("فشل الاتصال. راجع URL / Key وRLS/Data API")};
 $("clearSettings").onclick=()=>{localStorage.removeItem("gs1_sb_url");localStorage.removeItem("gs1_sb_key");supabaseClient=null;$("configNotice").classList.remove("hide");setStatus("تم مسح الإعدادات")};
 $("refresh").onclick=loadRows;
+$("refreshStock")?.addEventListener("click",loadStock);
+$("movementType")?.addEventListener("change",updateMovementUI);
+updateMovementUI();
 $("clear")?.addEventListener("click",async()=>{if(!supabaseClient)return;if(confirm("مسح جميع القراءات من قاعدة البيانات؟")){const {error}=await supabaseClient.from("scans").delete().not("id","is",null);if(error)alert(error.message);else loadRows()}});
 $("search").oninput=e=>{const q=e.target.value.trim().toLowerCase();renderRows(!q?allRows:allRows.filter(x=>[x.gtin,x.lot,x.expiry,x.serial,x.user_name,x.location].some(v=>String(v||"").toLowerCase().includes(q))))};
 async function getProductsForExport(gtins){
@@ -206,4 +264,4 @@ $("export").onclick=async()=>{
   }catch(e){console.error(e);alert("تعذر إنشاء ملف Excel: "+e.message)}
 };
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
-(async()=>{if(await initSupabase())await loadRows()})();
+(async()=>{if(await initSupabase()){await loadRows();await loadStock();}})();
