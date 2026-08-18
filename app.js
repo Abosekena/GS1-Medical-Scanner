@@ -184,7 +184,7 @@ $("save").onclick=async()=>{
     if(!product)return alert("المنتج غير موجود. احفظ المنتج أولًا ثم سجّل حركة المخزون.");
     const item={gtin,lot:$("lot").value.trim()||null,expiry:$("expiry").value.trim()||null,serial:$("serial").value.trim()||null};
     const required=type==="ADJUSTMENT"?Math.max(0,-quantity):Math.abs(quantity);
-    const reducesStock=["OUT","RETURN_OUT","TRANSFER"].includes(type)||required>0;
+    const reducesStock=["OUT","RETURN_OUT","TRANSFER"].includes(type)||(type==="ADJUSTMENT"&&quantity<0);
     if(reducesStock){
       try{
         const available=await getAvailableQuantity({...item,locationId});
