@@ -144,6 +144,48 @@ $("clearSettings").onclick=()=>{localStorage.removeItem("gs1_sb_url");localStora
 $("refresh").onclick=loadRows;
 $("clear")?.addEventListener("click",async()=>{if(!supabaseClient)return;if(confirm("مسح جميع القراءات من قاعدة البيانات؟")){const {error}=await supabaseClient.from("scans").delete().not("id","is",null);if(error)alert(error.message);else loadRows()}});
 $("search").oninput=e=>{const q=e.target.value.trim().toLowerCase();renderRows(!q?allRows:allRows.filter(x=>[x.gtin,x.lot,x.expiry,x.serial,x.user_name,x.location].some(v=>String(v||"").toLowerCase().includes(q))))};
-$("export").onclick=()=>{if(!allRows.length)return alert("لا توجد بيانات للتصدير");const data=allRows.map(x=>({ID:x.id,Date:x.scanned_at||x.created_at,GTIN:x.gtin,LOT:x.lot,Expiry:x.expiry,Serial:x.serial,Quantity:x.quantity,RawGS1:x.raw_gs1,Symbology:x.symbology,Location:x.location,Reference:x.reference,User:x.user_name}));const ws=XLSX.utils.json_to_sheet(data),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Scans");XLSX.writeFile(wb,`GS1_Scans_${new Date().toISOString().slice(0,10)}.xlsx`)};
+async function getProductsForExport(gtins){
+  const products=new Map();
+  if(!supabaseClient||!gtins.length)return products;
+  // Query in batches so a large scan history still exports reliably.
+  for(let i=0;i<gtins.length;i+=100){
+    const {data,error}=await supabaseClient.from("products").select("gtin,product_name,description,ref_number,uom").in("gtin",gtins.slice(i,i+100));
+    if(error){console.warn("Product export lookup failed:",error);continue}
+    for(const product of data||[])products.set(product.gtin,product);
+  }
+  return products;
+}
+$("export").onclick=async()=>{
+  if(!allRows.length)return alert("لا توجد بيانات للتصدير");
+  try{
+    const gtins=[...new Set(allRows.map(x=>x.gtin).filter(Boolean))];
+    const products=await getProductsForExport(gtins);
+    const data=allRows.map(x=>{
+      const product=products.get(x.gtin)||{};
+      return {
+        ID:x.id,
+        Date:x.scanned_at||x.created_at,
+        GTIN:x.gtin,
+        ProductCode:product.gtin||x.gtin,
+        ProductName:product.product_name||"",
+        Description:product.description||"",
+        ProductReference:product.ref_number||"",
+        UOM:product.uom||"",
+        LOT:x.lot,
+        Expiry:x.expiry,
+        Serial:x.serial,
+        Quantity:x.quantity,
+        RawGS1:x.raw_gs1,
+        Symbology:x.symbology,
+        Location:x.location,
+        ScanReference:x.reference,
+        User:x.user_name
+      };
+    });
+    const ws=XLSX.utils.json_to_sheet(data),wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,"Scans");
+    XLSX.writeFile(wb,`GS1_Scans_${new Date().toISOString().slice(0,10)}.xlsx`);
+  }catch(e){console.error(e);alert("تعذر إنشاء ملف Excel: "+e.message)}
+};
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 (async()=>{if(await initSupabase())await loadRows()})();
